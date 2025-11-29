@@ -1,0 +1,80 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    # Uncomment below to require manual approval before deployment (recommended for beginners)
+    # environment:
+    #   name: production
+    #   url: https://your-app.fly.dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --remote-only --ha=false
+
+      - name: Verify deployment
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Deployment completed!"
+          flyctl status
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed. Check logs above."
+            exit 1
+          fi
+
+      - name: Notify Discord - Success
+        if: success() && secrets.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "✅ Deployment Successful",
+                "description": "**Repository:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** [`${{ github.event.head_commit.message }}`](${{ github.event.head_commit.url }})\n**Author:** ${{ github.actor }}\n**Environment:** Production (Fly.io)",
+                "color": 3066993,
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }]
+            }' \
+            "$DISCORD_WEBHOOK" || echo "Discord notification failed (non-critical)"
+
+      - name: Notify Discord - Failure
+        if: failure() && secrets.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "❌ Deployment Failed",
+                "description": "**Repository:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** [`${{ github.event.head_commit.message }}`](${{ github.event.head_commit.url }})\n**Author:** ${{ github.actor }}\n**Workflow:** [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                "color": 15158332,
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }]
+            }' \
+            "$DISCORD_WEBHOOK" || echo "Discord notification failed (non-critical)"

@@ -1,0 +1,55 @@
+# Cursor AI Rules for this Project
+# These rules guide Cursor's AI assistance to follow project conventions
+
+## Code Style and Patterns
+- Follow existing code style and patterns found in the project
+- Use clear, descriptive variable and function names
+- Keep functions small and focused on a single responsibility
+- Prefer composition over inheritance
+- Write self-documenting code that minimizes need for comments
+
+## Security Requirements
+- ALWAYS validate and sanitize user inputs
+- NEVER hardcode secrets, API keys, or credentials
+- Use environment variables for configuration
+- Implement proper error handling without exposing sensitive information
+- Follow OWASP security best practices
+- Use parameterized queries to prevent SQL injection
+- Sanitize outputs to prevent XSS attacks
+
+## Error Handling
+- Include try-catch blocks for all async operations
+- Provide meaningful error messages
+- Log errors appropriately (but never log sensitive data)
+- Return appropriate HTTP status codes
+
+## Testing (when applicable)
+- Write tests for new features
+- Ensure tests are isolated and repeatable
+- Mock external dependencies
+- Aim for meaningful test coverage, not just high percentage
+
+## Documentation
+- Add JSDoc/docstring comments for public APIs
+- Update README when adding new features
+- Document complex algorithms or business logic
+- Keep inline comments minimal - prefer clear code
+
+## Git Practices
+- Write clear, descriptive commit messages
+- Keep commits atomic and focused
+- Don't commit commented-out code - delete it
+- Don't commit debug logs or console.log statements
+
+## Performance Considerations
+- Avoid premature optimization
+- Be mindful of database query performance (N+1 problems)
+- Use pagination for large data sets
+- Consider caching for expensive operations
+
+## Project-Specific Rules
+# Add your own project-specific rules here:
+# - Use TypeScript strict mode
+# - Follow REST API naming conventions
+# - Use async/await instead of .then() chains
+# - etc.
