@@ -17,18 +17,19 @@ fi
 # Sanitize description - remove potential secrets
 SAFE_DESCRIPTION=$(echo "$DESCRIPTION" | sed -E 's/(api[_-]?key|token|secret|password)[[:space:]]*[:=][[:space:]]*[^[:space:]]+/\1=REDACTED/gi')
 
-# Create JSON payload
-PAYLOAD=$(cat <<EOF
-{
-  "embeds": [{
-    "title": "$TITLE",
-    "description": "$SAFE_DESCRIPTION",
-    "color": $COLOR,
-    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  }]
-}
-EOF
-)
+# Create JSON payload with proper escaping using jq
+PAYLOAD=$(jq -n \
+  --arg title "$TITLE" \
+  --arg desc "$SAFE_DESCRIPTION" \
+  --argjson color "$COLOR" \
+  '{
+    embeds: [{
+      title: $title,
+      description: $desc,
+      color: $color,
+      timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
+    }]
+  }')
 
 # Send to Discord with timeout and retry
 curl -X POST \

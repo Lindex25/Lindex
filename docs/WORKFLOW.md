@@ -306,10 +306,17 @@ git merge main  # or git rebase main
 - Ensure `fly.toml` matches your app type
 - Check Fly.io status page for outages
 
-### Pre-commit Hooks Too Strict
-- Adjust `.pre-commit-config.yaml` as needed
-- Skip hooks in emergency: `git commit --no-verify` (use sparingly!)
-- Update hook versions if causing issues
+### Pre-commit Hooks Failing
+If pre-commit hooks fail:
+1. **Read the error message carefully** - it's protecting you from a mistake
+2. **Fix the underlying issue** - don't bypass the check
+3. **Update hook configuration** if it's a false positive (via `.pre-commit-config.yaml`)
+4. **Update the secrets baseline** if detect-secrets reports a false positive:
+   ```bash
+   detect-secrets scan > .secrets.baseline
+   ```
+
+**NEVER use `--no-verify`** in production code. If you must bypass for a legitimate reason (extremely rare), document why in the commit message and notify your team.
 
 ### Merge Conflicts
 ```bash

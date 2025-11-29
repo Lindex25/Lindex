@@ -71,6 +71,13 @@ get_project_info() {
         exit 1
     fi
 
+    # Validate project name format (security: prevent command injection)
+    if [[ ! "$PROJECT_NAME" =~ ^[a-z0-9-]+$ ]]; then
+        print_error "Project name must be lowercase alphanumeric and hyphens only"
+        print_error "Invalid characters detected. Please use only: a-z, 0-9, and hyphens"
+        exit 1
+    fi
+
     read -p "Project description: " PROJECT_DESCRIPTION
 
     read -p "Your GitHub username: " GITHUB_USERNAME
@@ -104,8 +111,18 @@ init_git() {
     print_info "Initializing Git repository..."
 
     if [ -d ".git" ]; then
-        print_info "Git repository already initialized, reinitializing..."
-        rm -rf .git
+        print_info "Git repository already exists."
+        read -p "Reinitialize git repository? This will DELETE all history! (yes/no): " REINIT
+        if [ "$REINIT" != "yes" ]; then
+            print_info "Keeping existing git repository"
+            return
+        fi
+
+        # Backup before destroying (safety measure)
+        BACKUP_NAME=".git.backup.$(date +%s)"
+        print_info "Creating backup at $BACKUP_NAME"
+        mv .git "$BACKUP_NAME"
+        print_success "Git history backed up to $BACKUP_NAME"
     fi
 
     git init
@@ -145,21 +162,32 @@ setup_precommit() {
     echo ""
     print_info "Setting up pre-commit hooks..."
 
-    if command -v pre-commit &> /dev/null; then
-        pre-commit install
-
-        # Initialize secrets baseline
-        if command -v detect-secrets &> /dev/null; then
-            detect-secrets scan > .secrets.baseline
-            print_success "Secrets detection baseline created"
-        fi
-
-        print_success "Pre-commit hooks installed"
-    else
-        print_info "pre-commit not installed"
-        print_info "Install with: pip install pre-commit"
-        print_info "Then run: pre-commit install"
+    # Install pre-commit if not available
+    if ! command -v pre-commit &> /dev/null; then
+        print_info "Installing pre-commit..."
+        pip install pre-commit || {
+            print_error "Failed to install pre-commit"
+            print_info "Install manually with: pip install pre-commit"
+            return 1
+        }
     fi
+
+    pre-commit install
+
+    # Create secrets baseline (required for pre-commit hook to work)
+    print_info "Creating secrets baseline..."
+    if ! command -v detect-secrets &> /dev/null; then
+        print_info "Installing detect-secrets..."
+        pip install detect-secrets || {
+            print_error "Failed to install detect-secrets"
+            return 1
+        }
+    fi
+
+    detect-secrets scan > .secrets.baseline
+    print_success "Secrets detection baseline created"
+
+    print_success "Pre-commit hooks installed with secrets baseline"
 }
 
 # Configure Fly.io

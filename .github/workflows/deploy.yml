@@ -17,10 +17,31 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Validate Required Secrets
+        run: |
+          echo "Validating required secrets..."
+
+          # Check if FLY_API_TOKEN is set
+          if [ -z "${{ secrets.FLY_API_TOKEN }}" ]; then
+            echo "::error::FLY_API_TOKEN secret is not set"
+            echo "::error::Go to Settings > Secrets > Actions and add FLY_API_TOKEN"
+            exit 1
+          fi
+
+          # Validate token format (basic check for Fly.io token)
+          TOKEN="${{ secrets.FLY_API_TOKEN }}"
+          if [[ ! "$TOKEN" =~ ^fo1_[a-zA-Z0-9]{40,}$ ]]; then
+            echo "::warning::FLY_API_TOKEN format looks incorrect"
+            echo "::warning::Expected format: fo1_<40+ alphanumeric chars>"
+            echo "::warning::Proceeding anyway, but deployment may fail"
+          fi
+
+          echo "✓ Required secrets are present"
 
       - name: Set up Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        uses: superfly/flyctl-actions/setup-flyctl@1a4a8c86317c68b55d6671a07e6c0f8e0e1f3c3e # master
 
       - name: Deploy to Fly.io
         env:
@@ -46,35 +67,54 @@ jobs:
           fi
 
       - name: Notify Discord - Success
-        if: success() && secrets.DISCORD_WEBHOOK_URL != ''
+        if: success() && secrets.DISCORD_WEBHOOK_DEPLOY != ''
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_DEPLOY }}
         run: |
+          # Use jq to properly escape JSON values
+          PAYLOAD=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg branch "${{ github.ref_name }}" \
+            --arg commit "${{ github.event.head_commit.message }}" \
+            --arg commit_url "${{ github.event.head_commit.url }}" \
+            --arg author "${{ github.actor }}" \
+            '{
+              embeds: [{
+                title: "✅ Deployment Successful",
+                description: ("**Repository:** " + $repo + "\n**Branch:** " + $branch + "\n**Commit:** [" + $commit + "](" + $commit_url + ")\n**Author:** " + $author + "\n**Environment:** Production (Fly.io)"),
+                color: 3066993,
+                timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
+              }]
+            }')
+
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "✅ Deployment Successful",
-                "description": "**Repository:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** [`${{ github.event.head_commit.message }}`](${{ github.event.head_commit.url }})\n**Author:** ${{ github.actor }}\n**Environment:** Production (Fly.io)",
-                "color": 3066993,
-                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-              }]
-            }' \
+            -d "$PAYLOAD" \
             "$DISCORD_WEBHOOK" || echo "Discord notification failed (non-critical)"
 
       - name: Notify Discord - Failure
-        if: failure() && secrets.DISCORD_WEBHOOK_URL != ''
+        if: failure() && secrets.DISCORD_WEBHOOK_DEPLOY != ''
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_DEPLOY }}
         run: |
+          # Use jq to properly escape JSON values
+          PAYLOAD=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg branch "${{ github.ref_name }}" \
+            --arg commit "${{ github.event.head_commit.message }}" \
+            --arg commit_url "${{ github.event.head_commit.url }}" \
+            --arg author "${{ github.actor }}" \
+            --arg logs_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{
+              embeds: [{
+                title: "❌ Deployment Failed",
+                description: ("**Repository:** " + $repo + "\n**Branch:** " + $branch + "\n**Commit:** [" + $commit + "](" + $commit_url + ")\n**Author:** " + $author + "\n**Workflow:** [View Logs](" + $logs_url + ")"),
+                color: 15158332,
+                timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
+              }]
+            }')
+
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "❌ Deployment Failed",
-                "description": "**Repository:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** [`${{ github.event.head_commit.message }}`](${{ github.event.head_commit.url }})\n**Author:** ${{ github.actor }}\n**Workflow:** [View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
-                "color": 15158332,
-                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-              }]
-            }' \
+            -d "$PAYLOAD" \
             "$DISCORD_WEBHOOK" || echo "Discord notification failed (non-critical)"

@@ -30,6 +30,10 @@ echo ""
 # Get the diff
 DIFF_CONTENT=$(git diff --cached)
 
+# Sanitize potential secrets from diff before sending to API
+echo "Sanitizing diff content..."
+SANITIZED_DIFF=$(echo "$DIFF_CONTENT" | sed -E 's/(api[_-]?key|token|secret|password|bearer)[[:space:]]*[:=][[:space:]]*[^[:space:]]+/\1=REDACTED/gi')
+
 # Create review prompt
 REVIEW_PROMPT="Please review the following code changes for:
 1. Code quality and best practices
@@ -38,28 +42,41 @@ REVIEW_PROMPT="Please review the following code changes for:
 4. Documentation needs
 
 Git diff:
-$DIFF_CONTENT"
+$SANITIZED_DIFF"
 
 echo "Sending to Claude API for review..."
 
-# Call Claude API using curl
+# Call Claude API using curl with proper JSON escaping
 RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
     -H "Content-Type: application/json" \
     -H "x-api-key: $ANTHROPIC_API_KEY" \
     -H "anthropic-version: 2023-06-01" \
-    -d "{
-        \"model\": \"claude-sonnet-4-5-20250929\",
-        \"max_tokens\": 4096,
-        \"messages\": [{
-            \"role\": \"user\",
-            \"content\": $(echo "$REVIEW_PROMPT" | jq -Rs .)
-        }]
-    }")
+    -d "$(jq -n \
+        --arg prompt "$REVIEW_PROMPT" \
+        '{
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": 4096,
+            "messages": [{
+                "role": "user",
+                "content": $prompt
+            }]
+        }')")
 
-# Extract and display the review
+# Extract and validate the review
+REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.content[0].text // empty')
+
 echo ""
 echo "=== Claude Code Review ==="
-echo "$RESPONSE" | jq -r '.content[0].text'
+
+if [ -z "$REVIEW_TEXT" ]; then
+    echo "Error: Failed to get review from Claude API"
+    echo ""
+    echo "Error details:"
+    echo "$RESPONSE" | jq -r '.error.message // "Unknown error"'
+    exit 1
+fi
+
+echo "$REVIEW_TEXT"
 echo ""
 
 # Ask if user wants to proceed with commit

@@ -13,36 +13,111 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0  # Full history for better context
 
+      - name: Validate Required Secrets
+        run: |
+          echo "Validating required secrets..."
+
+          # Check if ANTHROPIC_API_KEY is set
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set"
+            echo "::error::Go to Settings > Secrets > Actions and add ANTHROPIC_API_KEY"
+            echo "::error::Get your API key from: https://console.anthropic.com/"
+            exit 1
+          fi
+
+          # Validate key format (basic check for Anthropic API key)
+          KEY="${{ secrets.ANTHROPIC_API_KEY }}"
+          if [[ ! "$KEY" =~ ^sk-ant-[a-zA-Z0-9_-]{95,}$ ]]; then
+            echo "::warning::ANTHROPIC_API_KEY format looks incorrect"
+            echo "::warning::Expected format: sk-ant-<key data>"
+            echo "::warning::Proceeding anyway, but API calls may fail"
+          fi
+
+          echo "✓ Required secrets are present"
+
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v44
+        uses: tj-actions/changed-files@20576b4b9ed46d41e2d45a2256e5e2316dde6834 # v44.5.4
         with:
           separator: ","
 
-      - name: Install Claude Code CLI
+      - name: Get PR diff for review
+        id: diff
         run: |
-          curl -fsSL https://claude.ai/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Get the diff for changed files
+          git fetch origin ${{ github.base_ref }}
+          DIFF=$(git diff origin/${{ github.base_ref }}...HEAD)
 
-      - name: Run Claude Code Analysis
+          # Sanitize potential secrets from diff before sending to API
+          SANITIZED_DIFF=$(echo "$DIFF" | sed -E 's/(api[_-]?key|token|secret|password|bearer)[[:space:]]*[:=][[:space:]]*[^[:space:]]+/\1=REDACTED/gi')
+
+          # Save sanitized diff to file for API call
+          echo "$SANITIZED_DIFF" > diff-content.txt
+
+          echo "Diff prepared for review (secrets sanitized)"
+
+      - name: Run Claude API Analysis
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Create analysis prompt focusing on changed files
           echo "Analyzing changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
 
-          # Run Claude Code review on the entire project context
-          # Focus on: security vulnerabilities, bugs, code structure, best practices
-          claude-code analyze \
-            --prompt "Review this pull request for security vulnerabilities, potential bugs, code structure issues, and adherence to best practices. Changed files: ${{ steps.changed-files.outputs.all_changed_files }}" \
-            --output review-output.md || echo "# Claude Code Analysis\n\nAnalysis completed. Please review the findings below." > review-output.md
+          # Read sanitized diff
+          DIFF_CONTENT=$(cat diff-content.txt)
+
+          # Create review prompt
+          REVIEW_PROMPT="Review this pull request for:
+          1. Security vulnerabilities (SQL injection, XSS, command injection, etc.)
+          2. Potential bugs and logic errors
+          3. Code structure and maintainability issues
+          4. Best practices violations
+          5. Performance concerns
+
+          Changed files: ${{ steps.changed-files.outputs.all_changed_files }}
+
+          Git diff:
+          $DIFF_CONTENT"
+
+          # Call Anthropic API directly
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -d "$(jq -n \
+              --arg model "claude-sonnet-4-20250514" \
+              --arg prompt "$REVIEW_PROMPT" \
+              '{
+                "model": $model,
+                "max_tokens": 4096,
+                "messages": [{
+                  "role": "user",
+                  "content": $prompt
+                }]
+              }')")
+
+          # Extract review text and validate response
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.content[0].text // empty')
+
+          if [ -z "$REVIEW_TEXT" ]; then
+            echo "# Claude Code Analysis" > review-output.md
+            echo "" >> review-output.md
+            echo "⚠️ Review analysis could not be completed. API response was invalid." >> review-output.md
+            echo "" >> review-output.md
+            echo "Error details:" >> review-output.md
+            echo "$RESPONSE" | jq -r '.error.message // "Unknown error"' >> review-output.md
+          else
+            echo "# Claude Code Analysis" > review-output.md
+            echo "" >> review-output.md
+            echo "$REVIEW_TEXT" >> review-output.md
+          fi
 
       - name: Comment PR with Results
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const fs = require('fs');
@@ -88,16 +163,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Set up Node.js (for npm projects)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
           node-version: '20'
         continue-on-error: true
 
       - name: Set up Python (for pip projects)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: '3.11'
         continue-on-error: true
@@ -117,14 +192,14 @@ jobs:
         continue-on-error: true
 
       - name: Check for secrets in code
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@3c80edc08466a71e50f1e303fbf97c17e1dea127 # v3.82.13
         with:
           extra_args: --only-verified
 
   notify-discord:
     runs-on: ubuntu-latest
     needs: [claude-review, security-scan]
-    if: always() && secrets.DISCORD_WEBHOOK_URL != ''
+    if: always() && secrets.DISCORD_WEBHOOK_PR_REVIEW != ''
 
     steps:
       - name: Determine status
@@ -142,16 +217,28 @@ jobs:
 
       - name: Send Discord notification
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_PR_REVIEW }}
         run: |
+          # Use jq to properly escape JSON values
+          PAYLOAD=$(jq -n \
+            --arg emoji "${{ steps.status.outputs.emoji }}" \
+            --arg pr_num "${{ github.event.pull_request.number }}" \
+            --arg pr_title "${{ github.event.pull_request.title }}" \
+            --arg pr_url "${{ github.event.pull_request.html_url }}" \
+            --arg author "${{ github.event.pull_request.user.login }}" \
+            --arg claude_result "${{ needs.claude-review.result }}" \
+            --arg security_result "${{ needs.security-scan.result }}" \
+            --argjson color "${{ steps.status.outputs.color }}" \
+            '{
+              embeds: [{
+                title: ($emoji + " Pull Request Review Complete"),
+                description: ("**PR:** [#" + $pr_num + " - " + $pr_title + "](" + $pr_url + ")\n**Author:** " + $author + "\n**Claude Review:** " + $claude_result + "\n**Security Scan:** " + $security_result),
+                color: $color,
+                timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ"))
+              }]
+            }')
+
           curl -X POST \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "${{ steps.status.outputs.emoji }} Pull Request Review Complete",
-                "description": "**PR:** [#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}](${{ github.event.pull_request.html_url }})\n**Author:** ${{ github.event.pull_request.user.login }}\n**Claude Review:** ${{ needs.claude-review.result }}\n**Security Scan:** ${{ needs.security-scan.result }}",
-                "color": ${{ steps.status.outputs.color }},
-                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-              }]
-            }' \
+            -d "$PAYLOAD" \
             "$DISCORD_WEBHOOK" || echo "Discord notification failed (non-critical)"
