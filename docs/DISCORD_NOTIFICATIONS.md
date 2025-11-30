@@ -45,12 +45,14 @@ source ~/.bashrc
 ## Notification Events
 
 ### GitHub Actions
+
 - ✅ **Deployment Success** - When code deploys successfully to Fly.io
 - ❌ **Deployment Failure** - When deployment fails
 - ⚠️ **PR Review Complete** - After Claude Code review and security scan
 - 🔒 **Security Alerts** - When vulnerabilities detected (if enabled)
 
 ### Git Hooks
+
 - 💾 **Backup Success** - When network backup completes
 - ❌ **Backup Failure** - When backup fails
 
@@ -67,6 +69,7 @@ source ~/.bashrc
 ### Notifications not appearing
 
 **GitHub Actions:**
+
 1. Verify `DISCORD_WEBHOOK_URL` secret exists in repository settings
 2. Check workflow logs for errors
 3. Test webhook with curl:
@@ -77,21 +80,25 @@ source ~/.bashrc
    ```
 
 **Git Hooks:**
+
 1. Verify `~/.config/discord-webhooks` exists and has correct permissions
 2. Verify webhook variable matches your project name
 3. Source the config: `source ~/.config/discord-webhooks`
 
 ### Rate limiting
+
 Discord webhooks limit: 30 requests per 60 seconds per webhook. This template is designed to stay well under this limit.
 
 ## Customization
 
 Edit notification content in:
+
 - `.github/workflows/deploy.yml` - Deployment notifications
 - `.github/workflows/claude-code-review.yml` - PR review notifications
 - `.git/hooks/post-push` - Backup notifications
 
 Notification colors (decimal format):
+
 - Green (success): 3066993
 - Red (failure): 15158332
 - Yellow (warning): 16776960
@@ -100,6 +107,7 @@ Notification colors (decimal format):
 ## Example Notifications
 
 ### Deployment Success
+
 ```
 ✅ Deployment Successful
 Repository: username/project-name
@@ -110,6 +118,7 @@ Environment: Production (Fly.io)
 ```
 
 ### PR Review Complete
+
 ```
 ✅ Pull Request Review Complete
 PR: #42 - Add authentication system
@@ -119,6 +128,7 @@ Security Scan: success
 ```
 
 ### Backup Success
+
 ```
 💾 Backup Successful
 Project: my-project
@@ -130,22 +140,28 @@ Location: Network storage
 ## Disabling Notifications
 
 ### For a specific project:
+
 - Remove `DISCORD_WEBHOOK_URL` from GitHub Secrets
 - Remove webhook from `~/.config/discord-webhooks`
 
 ### For all future projects:
+
 - Answer "n" when prompted "Enable Discord notifications?" during project creation
 
 ## Advanced Configuration
 
 ### Multiple Projects, One Channel
+
 All projects can share the same Discord webhook URL. Each notification includes the project name and repository for easy identification.
 
 ### Separate Channels per Project
+
 Create different webhooks for each project in Discord and configure each project with its own webhook URL.
 
 ### Custom Notification Format
+
 Modify the webhook curl commands in the workflow files and git hooks to customize:
+
 - Message format
 - Colors
 - Additional fields (timestamp, links, etc.)
@@ -155,6 +171,7 @@ Refer to [Discord Webhook Documentation](https://discord.com/developers/docs/res
 ## Privacy Considerations
 
 Notifications include:
+
 - Repository name
 - Branch name
 - Commit messages
@@ -162,6 +179,7 @@ Notifications include:
 - Workflow status
 
 Notifications do NOT include:
+
 - Code contents
 - Environment variables
 - API keys or secrets (automatically redacted)

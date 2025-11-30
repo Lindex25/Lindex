@@ -28,6 +28,7 @@ git checkout -b feature/descriptive-name
 ```
 
 **Branch naming conventions:**
+
 - `feature/` - New features
 - `bugfix/` - Bug fixes
 - `refactor/` - Code refactoring
@@ -38,6 +39,7 @@ git checkout -b feature/descriptive-name
 Open the project in Cursor and start coding:
 
 **Best practices:**
+
 - Use Cursor's AI assistance (Cmd+K or Ctrl+K)
 - Follow the rules in `.cursorrules`
 - Make small, focused commits
@@ -68,6 +70,7 @@ git commit -m "Add user authentication feature"
 ```
 
 If pre-commit hooks fail:
+
 - Review the error messages
 - Fix the issues
 - Try committing again
@@ -85,6 +88,7 @@ gh pr create --title "Add user authentication" --body "Description of changes"
 ```
 
 **Pull Request best practices:**
+
 - Write clear title and description
 - Reference any related issues
 - Include testing steps if applicable
@@ -95,16 +99,19 @@ gh pr create --title "Add user authentication" --body "Description of changes"
 Once you create the PR, GitHub Actions automatically triggers:
 
 **Claude Code Review (`claude-code-review.yml`):**
+
 - Analyzes your code for bugs, security issues, and best practices
 - Posts review comments directly on the PR
 - Focuses on changed files for efficiency
 
 **Security Scan:**
+
 - Checks for dependency vulnerabilities (npm audit / pip-audit)
 - Scans for accidentally committed secrets (TruffleHog)
 - Runs automatically on every PR
 
 **Reviewing the results:**
+
 1. Check the PR page for the Claude Code review comment
 2. Address any critical issues identified
 3. Push fixes to the same branch (PR updates automatically)
@@ -123,6 +130,7 @@ gh pr merge --squash  # or --merge or --rebase
 ```
 
 **Merge strategies:**
+
 - **Squash merge** (recommended for solo): Clean history, one commit per feature
 - **Regular merge**: Preserves all commits
 - **Rebase**: Linear history
@@ -132,12 +140,14 @@ gh pr merge --squash  # or --merge or --rebase
 After merging to `main`, deployment happens automatically:
 
 **What happens:**
+
 1. GitHub Actions runs `deploy.yml` workflow
 2. Connects to Fly.io using `FLY_API_TOKEN`
 3. Deploys your app with `flyctl deploy`
 4. Verifies deployment status
 
 **Monitoring deployment:**
+
 ```bash
 # Watch deployment in real-time
 flyctl logs
@@ -176,6 +186,7 @@ git push origin main  # Triggers new deployment with revert
 ## Quick Reference Commands
 
 ### Daily Development
+
 ```bash
 # Start new feature
 git checkout -b feature/name
@@ -193,6 +204,7 @@ gh pr merge --squash
 ```
 
 ### Local Testing
+
 ```bash
 # Run Claude Code locally
 claude-code review --interactive
@@ -208,6 +220,7 @@ pre-commit run --all-files
 ```
 
 ### Fly.io Management
+
 ```bash
 # View logs
 flyctl logs
@@ -270,24 +283,28 @@ git merge main  # or git rebase main
 ## Tips for Maximum Efficiency
 
 ### Cursor IDE
+
 - Use AI chat for complex logic
 - Ask for test generation
 - Request refactoring suggestions
 - Use multi-cursor for batch edits
 
 ### Claude Code
+
 - Run locally during development for faster feedback
 - CI/CD review catches what you might miss
 - Focus on security and structural issues
 - Use findings to learn patterns
 
 ### Git Workflow
+
 - Commit frequently with clear messages
 - Keep feature branches short-lived (1-2 days max)
 - Merge main into your branch regularly to avoid conflicts
 - Delete merged branches to keep repo clean
 
 ### Deployment
+
 - Deploy multiple times per day for fast feedback
 - Small deployments = easier rollbacks
 - Monitor logs after each deployment
@@ -296,18 +313,22 @@ git merge main  # or git rebase main
 ## Troubleshooting Common Issues
 
 ### PR Review Not Triggering
+
 - Check GitHub Actions tab for errors
 - Verify `ANTHROPIC_API_KEY` is set
 - Ensure PR is not from a fork (security limitation)
 
 ### Deployment Failing
+
 - Check `flyctl logs` for application errors
 - Verify all required secrets are set
 - Ensure `fly.toml` matches your app type
 - Check Fly.io status page for outages
 
 ### Pre-commit Hooks Failing
+
 If pre-commit hooks fail:
+
 1. **Read the error message carefully** - it's protecting you from a mistake
 2. **Fix the underlying issue** - don't bypass the check
 3. **Update hook configuration** if it's a false positive (via `.pre-commit-config.yaml`)
@@ -319,6 +340,7 @@ If pre-commit hooks fail:
 **NEVER use `--no-verify`** in production code. If you must bypass for a legitimate reason (extremely rare), document why in the commit message and notify your team.
 
 ### Merge Conflicts
+
 ```bash
 # Update your branch with latest main
 git checkout feature/your-feature
@@ -342,6 +364,7 @@ git commit -m "Merge main and resolve conflicts"
 ### Multiple Deployment Targets
 
 Modify `deploy.yml` to deploy to different regions or apps:
+
 ```yaml
 strategy:
   matrix:
@@ -351,6 +374,7 @@ strategy:
 ### Custom Claude Code Prompts
 
 Edit `.github/workflows/claude-code-review.yml` to customize analysis:
+
 ```yaml
 --prompt "Focus on performance optimizations and SQL query efficiency"
 ```
@@ -358,6 +382,7 @@ Edit `.github/workflows/claude-code-review.yml` to customize analysis:
 ## Getting Help
 
 If you encounter issues:
+
 1. Check this workflow documentation
 2. Review README.md troubleshooting section
 3. Check tool-specific docs (Cursor, Claude, Fly.io)

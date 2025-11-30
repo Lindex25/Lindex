@@ -146,6 +146,7 @@ gh issue create
 ## Troubleshooting
 
 ### Deployment Failed
+
 ```bash
 # Check logs
 flyctl logs
@@ -161,6 +162,7 @@ flyctl releases rollback
 ```
 
 ### Pre-commit Hooks Failing
+
 ```bash
 # See what failed
 pre-commit run --all-files
@@ -172,6 +174,7 @@ pre-commit run --all-files
 ```
 
 ### Merge Conflicts
+
 ```bash
 # Update branch with main
 git checkout feature/my-feature
@@ -184,6 +187,7 @@ git commit -m "Resolve merge conflicts"
 ```
 
 ### Claude Code Review Not Running
+
 ```bash
 # Check GitHub Actions
 # Go to: https://github.com/USERNAME/REPO/actions
@@ -197,6 +201,7 @@ git commit -m "Resolve merge conflicts"
 ## Environment Variables
 
 ### Local Development (.env)
+
 ```bash
 # Edit local environment
 nano .env
@@ -206,6 +211,7 @@ export $(cat .env | xargs)
 ```
 
 ### Production (Fly.io)
+
 ```bash
 # Set secret
 flyctl secrets set DATABASE_URL="postgresql://..."

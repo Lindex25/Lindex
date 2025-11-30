@@ -110,11 +110,13 @@ export ANTHROPIC_API_KEY='your-key'
 ### Network backup failing
 
 Check `.backup.log` for robocopy errors. Common issues:
+
 - Network share not accessible from Windows
 - Permissions issues
 - Network path incorrect
 
 Test manually:
+
 ```bash
 powershell.exe -Command "Test-Path '\\\\Mottomo_takai\\AI Obsidian\\AI Application backups'"
 ```

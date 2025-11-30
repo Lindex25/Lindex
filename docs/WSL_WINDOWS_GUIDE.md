@@ -8,11 +8,11 @@ This guide explains how to work on your project using the hybrid WSL + Windows e
 
 ### Path Mapping
 
-| Environment | Path | Usage |
-|------------|------|-------|
-| Windows | `D:\AI\Projects\Lindex` | Primary storage, Cursor access |
-| WSL | `/mnt/d/AI/Projects/Lindex` | Command-line operations, Git, scripts |
-| Network Backup | `\\Mottomo_takai\AI Obsidian\AI Application backups\Lindex` | Automatic backup on push |
+| Environment    | Path                                                        | Usage                                 |
+| -------------- | ----------------------------------------------------------- | ------------------------------------- |
+| Windows        | `D:\AI\Projects\Lindex`                                     | Primary storage, Cursor access        |
+| WSL            | `/mnt/d/AI/Projects/Lindex`                                 | Command-line operations, Git, scripts |
+| Network Backup | `\\Mottomo_takai\AI Obsidian\AI Application backups\Lindex` | Automatic backup on push              |
 
 ### Why This Setup?
 
@@ -62,6 +62,7 @@ git push origin feature/my-new-feature
 ### What Happens Automatically
 
 1. **Pre-commit Hook Runs:**
+
    - Linting (ESLint, Prettier, etc. via pre-commit framework)
    - Secret detection
    - Code formatting checks
@@ -79,6 +80,7 @@ git push origin feature/my-new-feature
 You're using Claude Code right now! It's an interactive CLI tool for development assistance.
 
 **Use it for:**
+
 - Generating code
 - Debugging
 - Architecture discussions
@@ -86,6 +88,7 @@ You're using Claude Code right now! It's an interactive CLI tool for development
 - Explaining complex code
 
 **NOT for:**
+
 - Automated pre-commit reviews (use API script instead)
 - CI/CD pipelines (use GitHub Actions)
 
@@ -119,6 +122,7 @@ To enable Claude API review on every commit:
 3. Ensure `ANTHROPIC_API_KEY` is exported
 
 **Warning:** This will:
+
 - Slow down every commit (API latency)
 - Consume API credits
 - Block commits if API is down
@@ -205,6 +209,7 @@ git status
 **Cause:** Line ending mismatch (CRLF vs LF)
 
 **Solution:**
+
 ```bash
 cd /mnt/d/AI/Projects/Lindex
 
@@ -217,23 +222,27 @@ git commit -m "Normalize line endings"
 ### Network backup failing
 
 **Check 1:** Network accessible?
+
 ```bash
 powershell.exe -Command "Test-Path '\\\\Mottomo_takai\\AI Obsidian\\AI Application backups'"
 # Should output: True
 ```
 
 **Check 2:** Permissions
+
 ```bash
 # Try creating a test file
 powershell.exe -Command "New-Item -ItemType File -Path '\\\\Mottomo_takai\\AI Obsidian\\AI Application backups\\test.txt'"
 ```
 
 **Check 3:** Review backup log
+
 ```bash
 tail -20 /mnt/d/AI/Projects/Lindex/.backup.log
 ```
 
 **Common issues:**
+
 - Network share not mounted
 - Credentials expired (re-connect via Windows Explorer)
 - Server offline
@@ -242,6 +251,7 @@ tail -20 /mnt/d/AI/Projects/Lindex/.backup.log
 ### Claude review script fails
 
 **Error: "ANTHROPIC_API_KEY not set"**
+
 ```bash
 # Check if set
 echo $ANTHROPIC_API_KEY
@@ -255,12 +265,14 @@ source ~/.bashrc
 ```
 
 **Error: "jq: command not found"**
+
 ```bash
 sudo apt update
 sudo apt install jq
 ```
 
 **Error: "curl: failed to connect"**
+
 - Check internet connection
 - Verify API key is valid
 - Check Anthropic API status: https://status.anthropic.com
@@ -270,6 +282,7 @@ sudo apt install jq
 **Cause:** Opened wrong path
 
 **Solution:**
+
 - Close Cursor
 - File > Open Folder > `D:\AI\Projects\Lindex` (NOT `/mnt/d/...`)
 - Use Windows path, not WSL path
@@ -289,12 +302,14 @@ pre-commit run --all-files
 ## Performance Optimization
 
 ### DO:
+
 - Use Windows Git (git.exe) - faster on Windows filesystem
 - Open project in Cursor via Windows path (`D:\...`)
 - Run build tools from WSL if they're Linux-native
 - Store large node_modules on Windows side
 
 ### DON'T:
+
 - Mix WSL and Windows Git on same repo (pick one)
 - Edit files in WSL while Cursor is open (file watch issues)
 - Store project in WSL filesystem (`/home/...`) and access from Windows (slow)
@@ -304,6 +319,7 @@ pre-commit run --all-files
 ### API Keys
 
 **DO:**
+
 ```bash
 # Store in environment variable
 export ANTHROPIC_API_KEY='sk-ant-...'
@@ -311,6 +327,7 @@ echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.bashrc
 ```
 
 **DON'T:**
+
 ```bash
 # Hard-code in scripts
 ANTHROPIC_API_KEY='sk-ant-...'  # ❌ NEVER DO THIS
@@ -319,6 +336,7 @@ ANTHROPIC_API_KEY='sk-ant-...'  # ❌ NEVER DO THIS
 ### .env Files
 
 **DO:**
+
 ```bash
 # Keep .env in .gitignore
 # Never commit secrets
@@ -326,6 +344,7 @@ ANTHROPIC_API_KEY='sk-ant-...'  # ❌ NEVER DO THIS
 ```
 
 **DON'T:**
+
 ```bash
 # Commit .env to Git
 git add .env  # ❌ NEVER DO THIS
@@ -344,6 +363,7 @@ If you want scheduled backups instead of on-push:
 ### Option 1: Windows Task Scheduler
 
 1. Create `backup-task.ps1`:
+
 ```powershell
 robocopy "D:\AI\Projects\Lindex" "\\Mottomo_takai\AI Obsidian\AI Application backups\Lindex" /MIR /R:3 /W:5 /XD node_modules .git .venv /XF .env *.log
 ```
@@ -358,6 +378,7 @@ robocopy "D:\AI\Projects\Lindex" "\\Mottomo_takai\AI Obsidian\AI Application bac
 
 1. Create backup script in project
 2. Add to crontab:
+
 ```bash
 crontab -e
 
@@ -396,14 +417,14 @@ pre-commit run --all-files
 
 ### File Locations
 
-| File | Purpose |
-|------|---------|
-| `.git/hooks/pre-commit` | Runs before each commit |
-| `.git/hooks/post-push` | Runs after successful push (backup) |
-| `.backup.log` | Backup operation log |
-| `.gitattributes` | Line ending configuration |
-| `claude-review.sh` | Manual AI code review |
-| `docs/CLAUDE_INTEGRATION.md` | Claude integration details |
+| File                         | Purpose                             |
+| ---------------------------- | ----------------------------------- |
+| `.git/hooks/pre-commit`      | Runs before each commit             |
+| `.git/hooks/post-push`       | Runs after successful push (backup) |
+| `.backup.log`                | Backup operation log                |
+| `.gitattributes`             | Line ending configuration           |
+| `claude-review.sh`           | Manual AI code review               |
+| `docs/CLAUDE_INTEGRATION.md` | Claude integration details          |
 
 ## FAQ
 

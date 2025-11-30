@@ -9,6 +9,7 @@ bash setup-wsl.sh
 ```
 
 This will:
+
 1. Create project at `D:\AI\Projects\Lindex`
 2. Set up Git with Windows compatibility
 3. Install automated network backup (triggers on `git push`)
@@ -22,15 +23,18 @@ This will:
 ## What You Get
 
 ### Project Location
+
 - **Windows path:** `D:\AI\Projects\Lindex` (use in Cursor)
 - **WSL path:** `/mnt/d/AI/Projects/Lindex` (use in terminal)
 
 ### Automatic Backups
+
 - **Trigger:** Every `git push`
 - **Destination:** `\\Mottomo_takai\AI Obsidian\AI Application backups\Lindex`
 - **Log:** `.backup.log` in project root
 
 ### Claude Code Reviews
+
 - **Interactive (this CLI):** Already working - you're using it now!
 - **Manual API reviews:** Run `./claude-review.sh` before commits
 - **Automated:** NOT enabled by default (costs API credits, slows commits)
@@ -168,6 +172,7 @@ ls -la .git/hooks/
 ### Setup script fails on "D: drive not accessible"
 
 **Fix:**
+
 ```bash
 # Check if /mnt/d exists:
 ls /mnt/d
@@ -188,6 +193,7 @@ wsl --shutdown
 ### Network backup path not accessible
 
 **Fix:**
+
 1. Open Windows Explorer
 2. Navigate to: `\\Mottomo_takai\AI Obsidian\AI Application backups`
 3. Enter credentials if prompted
@@ -197,6 +203,7 @@ wsl --shutdown
 ### Git shows all files as modified
 
 **Fix:**
+
 ```bash
 cd /mnt/d/AI/Projects/Lindex
 git config core.autocrlf false
@@ -210,15 +217,15 @@ git commit -m "Normalize line endings"
 
 ## Key Files Reference
 
-| File | Purpose |
-|------|---------|
-| `setup-wsl.sh` | Initial project setup (run once) |
-| `claude-review.sh` | Manual AI code review |
-| `.git/hooks/pre-commit` | Runs before each commit |
-| `.git/hooks/post-push` | Backs up to network after push |
-| `.backup.log` | Backup operation log |
-| `docs/WSL_WINDOWS_GUIDE.md` | Complete documentation |
-| `docs/CLAUDE_INTEGRATION.md` | Claude API details |
+| File                         | Purpose                          |
+| ---------------------------- | -------------------------------- |
+| `setup-wsl.sh`               | Initial project setup (run once) |
+| `claude-review.sh`           | Manual AI code review            |
+| `.git/hooks/pre-commit`      | Runs before each commit          |
+| `.git/hooks/post-push`       | Backs up to network after push   |
+| `.backup.log`                | Backup operation log             |
+| `docs/WSL_WINDOWS_GUIDE.md`  | Complete documentation           |
+| `docs/CLAUDE_INTEGRATION.md` | Claude API details               |
 
 ---
 

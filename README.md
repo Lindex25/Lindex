@@ -15,6 +15,7 @@ A streamlined development template integrating Cursor IDE, Claude Code, and Fly.
 ### 1. Prerequisites
 
 Ensure you have the following installed:
+
 - Git
 - Node.js (v18+) or Python (3.11+) depending on your project type
 - [Fly.io CLI](https://fly.io/docs/hands-on/install-flyctl/)
@@ -32,6 +33,7 @@ cd /home/nstephenson/hub/my-new-project
 ```
 
 The setup script will:
+
 - Initialize a new Git repository
 - Set up pre-commit hooks
 - Create a GitHub repository
@@ -41,12 +43,14 @@ The setup script will:
 ### 3. Configure Secrets
 
 #### GitHub Secrets (for CI/CD)
+
 Add these secrets to your GitHub repository at `Settings > Secrets and variables > Actions`:
 
 1. `ANTHROPIC_API_KEY` - Your Claude API key from [console.anthropic.com](https://console.anthropic.com/)
 2. `FLY_API_TOKEN` - Get from `flyctl auth token`
 
 #### Fly.io Secrets (for runtime)
+
 ```bash
 # Set production environment variables
 flyctl secrets set DATABASE_URL="your_database_url"
@@ -75,6 +79,7 @@ npm run dev  # or python app.py
 See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the complete development workflow documentation.
 
 **Quick summary:**
+
 1. Create feature branch: `git checkout -b feature/your-feature`
 2. Develop in Cursor with AI assistance
 3. Test locally
@@ -103,14 +108,17 @@ See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the complete development workflow d
 ### For Your Project Type
 
 **Node.js/JavaScript:**
+
 - Uncomment Node.js builder in `fly.toml`
 - Remove Python-specific pre-commit hooks from `.pre-commit-config.yaml`
 
 **Python:**
+
 - Uncomment Python builder in `fly.toml`
 - Remove JavaScript-specific pre-commit hooks from `.pre-commit-config.yaml`
 
 **Docker:**
+
 - Create a `Dockerfile`
 - Update `fly.toml` to use Dockerfile builder
 
@@ -125,15 +133,18 @@ For beginners, it's recommended to require manual approval before deployment:
 ## Troubleshooting
 
 ### Claude Code Review Not Running
+
 - Verify `ANTHROPIC_API_KEY` is set in GitHub Secrets
 - Check GitHub Actions logs for errors
 
 ### Deployment Failing
+
 - Verify `FLY_API_TOKEN` is set in GitHub Secrets
 - Run `flyctl logs` to see application errors
 - Ensure `fly.toml` is configured correctly for your app type
 
 ### Pre-commit Hooks Failing
+
 - Run `pre-commit run --all-files` to see specific errors
 - Update `.pre-commit-config.yaml` if needed
 

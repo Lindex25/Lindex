@@ -22,6 +22,7 @@ bash setup-wsl.sh
 **Time:** 2-3 minutes
 
 **Result:** Project created at:
+
 - Windows: `D:\AI\Projects\Lindex`
 - WSL: `/mnt/d/AI/Projects/Lindex`
 - Backup: `\\Mottomo_takai\AI Obsidian\AI Application backups\Lindex`
@@ -33,6 +34,7 @@ bash setup-wsl.sh
 **Problem:** Working across WSL and Windows can cause path conflicts, line-ending issues, and performance problems.
 
 **Solution:**
+
 - Project lives on Windows filesystem (`D:\AI\Projects\Lindex`)
 - Cursor accesses native Windows path
 - WSL accesses via `/mnt/d/AI/Projects/Lindex`
@@ -44,6 +46,7 @@ bash setup-wsl.sh
 **Problem:** Need reliable backups to network share without manual intervention.
 
 **Solution:**
+
 - Git `post-push` hook triggers Windows `robocopy`
 - Mirrors project to `\\Mottomo_takai\AI Obsidian\AI Application backups\Lindex`
 - Excludes dependencies, build artifacts, secrets
@@ -55,6 +58,7 @@ bash setup-wsl.sh
 **Problem:** Want AI code reviews but unsure how to integrate them into workflow.
 
 **Solution:**
+
 - **Interactive Claude Code** - You're using it now! Best for development
 - **Manual API reviews** - Run `./claude-review.sh` before critical commits
 - **Automated pre-commit** - Optional (costs API credits, slows commits)
@@ -65,6 +69,7 @@ bash setup-wsl.sh
 **Problem:** Need to catch issues early without slowing down development.
 
 **Solution:**
+
 1. **Pre-commit hooks** - Local checks (linting, secrets, formatting)
 2. **Claude API reviews** - Optional AI review before commit
 3. **GitHub Actions** - Automated CI on every PR
@@ -182,16 +187,19 @@ tail .backup.log
 ### Pre-commit Hooks
 
 **What they do:**
+
 - Lint code (ESLint, Prettier, etc.)
 - Detect secrets (API keys, passwords)
 - Format code consistently
 - Run tests (if configured)
 
 **When they run:**
+
 - Automatically on every `git commit`
 - Can run manually: `pre-commit run --all-files`
 
 **How to skip (emergency only):**
+
 ```bash
 git commit --no-verify -m "Emergency fix"
 ```
@@ -199,19 +207,23 @@ git commit --no-verify -m "Emergency fix"
 ### Post-push Backup
 
 **What it does:**
+
 - Mirrors entire project to network share
 - Excludes: node_modules, .git, .env, logs, build artifacts
 - Logs results to `.backup.log`
 
 **When it runs:**
+
 - Automatically after every successful `git push`
 
 **How to trigger manually:**
+
 ```bash
 .git/hooks/post-push
 ```
 
 **How to disable:**
+
 ```bash
 mv .git/hooks/post-push .git/hooks/post-push.disabled
 ```
@@ -221,11 +233,13 @@ mv .git/hooks/post-push .git/hooks/post-push.disabled
 **Three ways to use:**
 
 1. **Interactive (you're using it now!)**
+
    - Best for: Development, debugging, learning
    - Cost: Covered by Claude Code subscription
    - Usage: Just talk to Claude!
 
 2. **Manual API review (`./claude-review.sh`)**
+
    - Best for: Critical commits, complex changes
    - Cost: ~$0.02-$0.10 per review (API tokens)
    - Usage: `git add . && ./claude-review.sh`
@@ -249,17 +263,20 @@ nano .env
 ```
 
 **Required:**
+
 ```
 # None required for basic usage
 ```
 
 **Optional (for Claude API reviews):**
+
 ```bash
 export ANTHROPIC_API_KEY='sk-ant-api03-...'
 echo 'export ANTHROPIC_API_KEY="sk-ant-..."' >> ~/.bashrc
 ```
 
 **Optional (for GitHub Actions):**
+
 ```
 ANTHROPIC_API_KEY   # For PR reviews
 FLY_API_TOKEN       # For deployment
@@ -287,13 +304,13 @@ Edit `.git/hooks/post-push` line 18 to customize:
 
 ### Common Issues
 
-| Issue | Solution |
-|-------|----------|
-| "All files modified" in Git | Run: `git rm -rf --cached . && git add . && git commit -m "Fix line endings"` |
-| Network backup fails | Verify: `powershell.exe -Command "Test-Path '\\\\Mottomo_takai\\AI Obsidian\\AI Application backups'"` |
-| Pre-commit hooks don't run | Run: `pre-commit install` |
-| Claude review script fails | Set: `export ANTHROPIC_API_KEY='your-key'` and install: `sudo apt install jq` |
-| Cursor can't find files | Open Windows path: `D:\AI\Projects\Lindex` (not WSL path) |
+| Issue                       | Solution                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ |
+| "All files modified" in Git | Run: `git rm -rf --cached . && git add . && git commit -m "Fix line endings"`                          |
+| Network backup fails        | Verify: `powershell.exe -Command "Test-Path '\\\\Mottomo_takai\\AI Obsidian\\AI Application backups'"` |
+| Pre-commit hooks don't run  | Run: `pre-commit install`                                                                              |
+| Claude review script fails  | Set: `export ANTHROPIC_API_KEY='your-key'` and install: `sudo apt install jq`                          |
+| Cursor can't find files     | Open Windows path: `D:\AI\Projects\Lindex` (not WSL path)                                              |
 
 ### Getting Help
 
@@ -305,12 +322,14 @@ Edit `.git/hooks/post-push` line 18 to customize:
 ## Performance Tips
 
 ### DO:
+
 - Use Windows Git (git.exe) for best performance
 - Open Cursor via Windows path (`D:\...`)
 - Run builds from WSL if they're Linux-native
 - Keep large dependencies on Windows side
 
 ### DON'T:
+
 - Mix WSL and Windows Git on same repo
 - Edit files in WSL while Cursor is open
 - Store project in WSL home (`/home/...`) and access from Windows
@@ -329,21 +348,25 @@ Edit `.git/hooks/post-push` line 18 to customize:
 ## Next Steps After Setup
 
 1. **Configure GitHub:**
+
    ```bash
    gh repo create Lindex --private --source=. --remote=origin
    git push -u origin main
    ```
 
 2. **Set GitHub Secrets:**
+
    - Go to: Settings > Secrets and variables > Actions
    - Add: `ANTHROPIC_API_KEY`, `FLY_API_TOKEN`
 
 3. **Install Dependencies:**
+
    ```bash
    npm install    # or pip install -r requirements.txt
    ```
 
 4. **Start Development:**
+
    ```bash
    git checkout -b feature/my-first-feature
    # Code in Cursor, commit, push!
