@@ -1,55 +1,924 @@
 # Cursor AI Rules for this Project
-# These rules guide Cursor's AI assistance to follow project conventions
+# Last Updated: 2025-11-30
+# Version: 2.0 - Enhanced with comprehensive best practices
 
-## Code Style and Patterns
-- Follow existing code style and patterns found in the project
-- Use clear, descriptive variable and function names
-- Keep functions small and focused on a single responsibility
-- Prefer composition over inheritance
-- Write self-documenting code that minimizes need for comments
+## 📚 Table of Contents
+- Quick Reference (Top 10 Must-Follow Rules)
+- Language-Specific Rules
+- Security Requirements
+- API Design Standards
+- Data Handling and Validation
+- Error Handling and Resilience
+- Observability and Monitoring
+- Testing Standards
+- Performance and Scalability
+- Infrastructure and Deployment
+- Git and Code Review Practices
+- Documentation Standards
+- Explicit Prohibitions (NEVER do these)
+- Project-Specific Overrides
 
-## Security Requirements
-- ALWAYS validate and sanitize user inputs
-- NEVER hardcode secrets, API keys, or credentials
-- Use environment variables for configuration
-- Implement proper error handling without exposing sensitive information
-- Follow OWASP security best practices
-- Use parameterized queries to prevent SQL injection
-- Sanitize outputs to prevent XSS attacks
+---
 
-## Error Handling
-- Include try-catch blocks for all async operations
-- Provide meaningful error messages
-- Log errors appropriately (but never log sensitive data)
-- Return appropriate HTTP status codes
+## 🎯 Quick Reference - Top 10 Must-Follow Rules
 
-## Testing (when applicable)
-- Write tests for new features
-- Ensure tests are isolated and repeatable
-- Mock external dependencies
-- Aim for meaningful test coverage, not just high percentage
+1. **Validate ALL user input** at entry points using schema validation
+2. **Use parameterized queries** - NEVER string concatenation for SQL
+3. **Never log secrets, tokens, or PII** (passwords, SSNs, credit cards, API keys)
+4. **All async operations** must have error handling and timeouts
+5. **Use type safety** (TypeScript strict mode, Python type hints)
+6. **Structured logging** with correlation IDs for request tracing
+7. **Test coverage** for all critical paths and edge cases
+8. **Environment-specific config** via environment variables ONLY
+9. **Graceful error responses** - never expose stack traces to users
+10. **Code review required** before merge - no direct commits to main
 
-## Documentation
-- Add JSDoc/docstring comments for public APIs
-- Update README when adding new features
-- Document complex algorithms or business logic
-- Keep inline comments minimal - prefer clear code
+---
 
-## Git Practices
-- Write clear, descriptive commit messages
-- Keep commits atomic and focused
-- Don't commit commented-out code - delete it
-- Don't commit debug logs or console.log statements
+## 🔧 Language-Specific Rules
 
-## Performance Considerations
-- Avoid premature optimization
-- Be mindful of database query performance (N+1 problems)
-- Use pagination for large data sets
-- Consider caching for expensive operations
+### Python Guidelines
 
-## Project-Specific Rules
-# Add your own project-specific rules here:
-# - Use TypeScript strict mode
-# - Follow REST API naming conventions
-# - Use async/await instead of .then() chains
-# - etc.
+#### Type Safety and Code Quality
+- **USE type hints** for all function signatures (PEP 484)
+  ```python
+  # Good
+  def process_user(user_id: int, name: str) -> User:
+      return User(id=user_id, name=name)
+
+  # Bad
+  def process_user(user_id, name):
+      return User(id=user_id, name=name)
+  ```
+- Follow PEP 8 style guide (enforced by Black formatter)
+- Use dataclasses or Pydantic models for structured data
+- Prefer f-strings over .format() or % formatting
+- Use pathlib.Path instead of os.path for file operations
+
+#### Async and Resource Management
+- Use context managers (`with` statements) for resource management
+  ```python
+  # Good
+  with open('file.txt') as f:
+      data = f.read()
+
+  # Bad
+  f = open('file.txt')
+  data = f.read()
+  f.close()  # Easy to forget!
+  ```
+- Use async/await for I/O-bound operations (DB, API calls, file I/O)
+- Implement `__enter__` and `__exit__` for custom resource classes
+
+#### Error Handling
+- Use specific exception types, not bare `except:`
+- Raise exceptions early, handle them at appropriate boundaries
+- Use `logging` module, not `print()` statements
+
+#### Dependencies
+- Pin exact versions in requirements.txt via `pip freeze`
+- Use virtual environments (venv, poetry, pipenv)
+- Prefer standard library over external packages when reasonable
+
+---
+
+### JavaScript/TypeScript Guidelines
+
+#### Type Safety
+- **ENFORCE TypeScript strict mode** in tsconfig.json
+  ```json
+  {
+    "compilerOptions": {
+      "strict": true,
+      "noImplicitAny": true,
+      "strictNullChecks": true
+    }
+  }
+  ```
+- Use explicit return types for all functions
+- **AVOID `any` type** - use `unknown` or proper types instead
+  ```typescript
+  // Good
+  function parseData(input: unknown): ParsedData {
+      if (!isValidInput(input)) throw new Error('Invalid input');
+      return input as ParsedData;
+  }
+
+  // Bad
+  function parseData(input: any): any {
+      return input;
+  }
+  ```
+
+#### Modern JavaScript Patterns
+- Use async/await instead of `.then()` chains
+  ```typescript
+  // Good
+  async function fetchUser(id: string): Promise<User> {
+      const response = await fetch(`/api/users/${id}`);
+      return await response.json();
+  }
+
+  // Bad
+  function fetchUser(id: string): Promise<User> {
+      return fetch(`/api/users/${id}`)
+          .then(res => res.json());
+  }
+  ```
+- Destructure imports to reduce bundle size
+- Use const/let, never var
+- Prefer arrow functions for callbacks and anonymous functions
+
+#### Error Handling
+- Always handle promise rejections with `.catch()` or try/catch
+- Use Error subclasses for different error types
+- Include error context in thrown errors
+
+#### Dependencies
+- Use exact versions in package.json or use lock files
+- Audit dependencies regularly with `npm audit`
+- Avoid deprecated packages and minimize dependency tree
+
+---
+
+## 🔒 Security Requirements
+
+### Input Validation (CRITICAL)
+- **Validate ALL user input** at entry points using schema validation
+  - Python: Use Pydantic, marshmallow, or cerberus
+  - TypeScript: Use Zod, Joi, or class-validator
+- **Enforce input size limits**
+  - Max 1MB for JSON payloads (configurable)
+  - Max file upload sizes based on use case
+  - Limit string lengths, array sizes, nesting depth
+- **Use allowlists over denylists** for validation
+  - Specify what IS allowed, not what isn't
+  - Example: Accept only [a-zA-Z0-9_-] for usernames
+- **Validate file uploads**
+  - Check MIME type, file extension, AND magic bytes
+  - Scan for malware if processing user uploads
+  - Store in isolated location, not web-accessible directory
+
+### SQL Injection Prevention (CRITICAL)
+- **Use parameterized queries or ORM methods exclusively**
+- **NEVER concatenate strings to build SQL** - no exceptions
+  ```python
+  # Good (parameterized)
+  cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+
+  # Good (ORM)
+  User.objects.filter(id=user_id).first()
+
+  # BAD - SQL INJECTION VULNERABLE
+  cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+  ```
+- Use ORM query builders (SQLAlchemy, Prisma, TypeORM)
+- Validate/sanitize even when using ORMs (defense in depth)
+
+### Cross-Site Scripting (XSS) Prevention
+- **Sanitize HTML output** using DOMPurify, bleach, or framework escaping
+- **NEVER trust user content** - escape before rendering
+- Use Content Security Policy (CSP) headers
+- Set X-Content-Type-Options: nosniff
+- Prefer textContent over innerHTML when possible
+
+### Authentication & Authorization
+- **Password hashing**: Use bcrypt (cost factor 12+) or argon2id
+  ```python
+  # Good
+  import bcrypt
+  hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12))
+
+  # BAD - NEVER STORE PLAINTEXT PASSWORDS
+  user.password = password
+  ```
+- **JWT tokens**:
+  - Set expiry: max 15 minutes for access tokens
+  - Use refresh tokens for longer sessions
+  - Sign with strong secrets (min 256-bit random)
+  - Validate signature and expiry on every request
+- **Rate limiting**: Max 5 failed login attempts per 15 minutes per IP/user
+- **Session management**:
+  - Use httpOnly, secure, sameSite cookies
+  - NEVER store tokens in localStorage (XSS vulnerable)
+  - Implement session timeout and absolute timeout
+- **Principle of least privilege**: Users get minimum necessary permissions
+- **Multi-factor authentication**: Implement for sensitive operations
+
+### Cryptography
+- **Use AES-256-GCM for encryption** (not ECB mode which is insecure)
+- **Generate cryptographically secure random values**:
+  - Python: `secrets` module
+  - Node.js: `crypto.randomBytes()`
+- **NEVER use MD5, SHA1, or DES** - deprecated and broken
+- **Key management**:
+  - Rotate encryption keys annually minimum
+  - Store keys in secure vaults (AWS KMS, HashiCorp Vault)
+  - Never hardcode keys in source code
+- **Use TLS 1.3** for all external communications
+- Don't implement custom crypto - use vetted libraries
+
+### API Security
+- **Rate limiting**: 100 requests/min per API key (adjust per endpoint)
+- **CORS policies**: Set restrictively - no wildcard origins in production
+  ```javascript
+  // Good
+  cors({ origin: 'https://yourdomain.com' })
+
+  // BAD in production
+  cors({ origin: '*' })
+  ```
+- **Security headers**:
+  - Content-Security-Policy
+  - Strict-Transport-Security (HSTS)
+  - X-Frame-Options: DENY
+  - X-Content-Type-Options: nosniff
+- **API key management**:
+  - Rotate quarterly minimum
+  - Revoke immediately on suspected compromise
+  - Use separate keys for dev/staging/prod
+- **Request validation**:
+  - Validate Content-Type header matches payload
+  - Reject unexpected HTTP methods
+  - Limit request body size
+
+### Dependency Security
+- **Run security audits** before merging dependency changes
+  - Python: `pip-audit` or `safety check`
+  - Node.js: `npm audit` or `yarn audit`
+- **Use lock files** to ensure reproducible builds
+  - package-lock.json, yarn.lock, poetry.lock
+- **Review dependencies before adding**:
+  - Check last update date (avoid unmaintained packages >12 months)
+  - Review GitHub stars, issues, security advisories
+  - Minimize dependency count (smaller attack surface)
+- **Automated updates**: Use Dependabot or Renovate for security patches
+- **Verify package integrity**: Check checksums, use verified registries
+
+### Data Protection and Privacy
+- **PII handling**:
+  - Identify and classify PII (names, emails, SSN, addresses, etc.)
+  - Encrypt PII at rest and in transit
+  - Implement data retention policies
+  - Support data deletion requests (GDPR Right to Erasure)
+- **Anonymization**: Hash or pseudonymize PII for analytics
+- **Audit logging**: Log access to sensitive data with user ID and timestamp
+- **Data minimization**: Only collect and store necessary data
+
+---
+
+## 🌐 API Design Standards
+
+### RESTful Resource Naming
+- Use plural nouns for collections: `/users`, `/orders`
+- Use HTTP methods correctly:
+  - GET: Retrieve (safe, idempotent)
+  - POST: Create (not idempotent)
+  - PUT: Replace (idempotent)
+  - PATCH: Partial update (idempotent)
+  - DELETE: Remove (idempotent)
+- Use nested resources for relationships: `/users/{id}/orders`
+- Avoid verbs in URLs - use HTTP methods instead
+
+### Versioning
+- Version APIs in URL path: `/api/v1/users`, `/api/v2/users`
+- Maintain backward compatibility within major version
+- Deprecation notices: 6 months minimum before removal
+- Document breaking changes clearly
+
+### Request/Response Format
+- Use consistent JSON structure
+  ```json
+  {
+    "data": { ... },
+    "meta": { "page": 1, "total": 100 },
+    "errors": []
+  }
+  ```
+- Use ISO 8601 for dates: `2025-11-30T12:00:00Z`
+- Use snake_case (Python) or camelCase (JS) consistently
+- Include pagination metadata: page, limit, total, hasNext
+
+### Error Responses
+- Use RFC 7807 Problem Details format
+  ```json
+  {
+    "type": "https://api.example.com/errors/validation-error",
+    "title": "Validation Failed",
+    "status": 400,
+    "detail": "Email format is invalid",
+    "instance": "/api/v1/users",
+    "errors": {
+      "email": ["Must be valid email format"]
+    }
+  }
+  ```
+- Use appropriate HTTP status codes:
+  - 200: Success
+  - 201: Created
+  - 400: Bad Request (client error)
+  - 401: Unauthorized (not authenticated)
+  - 403: Forbidden (authenticated but not authorized)
+  - 404: Not Found
+  - 422: Unprocessable Entity (validation failed)
+  - 429: Too Many Requests (rate limited)
+  - 500: Internal Server Error
+  - 503: Service Unavailable
+
+### Pagination and Filtering
+- Support cursor-based pagination for large datasets
+- Provide filtering: `/users?status=active&role=admin`
+- Provide sorting: `/users?sort=-created_at` (- for descending)
+- Limit max page size (e.g., 100 items)
+
+---
+
+## 📊 Data Handling and Validation
+
+### Schema Validation
+- Define schemas for all API inputs and outputs
+- Validate at API boundaries (controllers), not deep in business logic
+- Use strict validation - reject unknown fields by default
+- Provide clear validation error messages
+
+### Type Coercion
+- Be explicit about type coercion rules
+- Validate types before coercion: `"123"` → `123` is OK, `"abc"` → error
+- Don't silently ignore invalid data
+
+### Serialization Security
+- Prevent prototype pollution in JavaScript:
+  ```javascript
+  // Good
+  const obj = Object.create(null);
+
+  // Or use Map
+  const data = new Map();
+  ```
+- Prevent XML External Entity (XXE) attacks: Disable external entity processing
+- Limit JSON parsing depth to prevent DoS
+
+### Database Queries
+- **NEVER use `SELECT *`** in production - specify columns
+  ```sql
+  -- Good
+  SELECT id, name, email FROM users WHERE id = ?
+
+  -- Bad (performance impact, potential data leaks)
+  SELECT * FROM users WHERE id = ?
+  ```
+- Use indexes for frequently queried columns
+- Avoid N+1 queries - use joins or eager loading
+- Implement query timeouts (e.g., 30 seconds max)
+- Use connection pooling for efficiency
+
+---
+
+## ⚠️ Error Handling and Resilience
+
+### Exception Handling
+- **Catch specific exceptions**, not broad `catch (Exception)` unless rethrowing
+  ```python
+  # Good
+  try:
+      result = api.call()
+  except requests.Timeout:
+      logger.error("API timeout")
+      return fallback_value
+  except requests.RequestException as e:
+      logger.exception("API error: %s", e)
+      raise
+
+  # Bad
+  try:
+      result = api.call()
+  except:  # Too broad, catches everything including KeyboardInterrupt
+      pass
+  ```
+- **Never use empty catch blocks** - at minimum, log the error
+- **Fail fast**: Validate inputs early, raise errors immediately
+- **Handle errors at appropriate boundaries**: Controllers, not deep in services
+
+### User-Facing Errors
+- **NEVER expose stack traces** or internal errors to end users
+- Return generic error messages: "An error occurred. Please try again."
+- Log detailed error info server-side with correlation ID
+- Provide correlation ID to users for support requests
+
+### Timeout Configuration
+- **Set timeouts for ALL external calls**:
+  - HTTP requests: 10-30 seconds
+  - Database queries: 30 seconds
+  - Cache operations: 1-5 seconds
+- Use exponential backoff for retries (1s, 2s, 4s, 8s)
+- Add jitter to prevent thundering herd: `timeout + random(0, 1s)`
+
+### Circuit Breakers
+- Implement circuit breakers for external dependencies
+- States: Closed (normal) → Open (failing) → Half-Open (testing)
+- After N failures, open circuit and return fallback for M seconds
+- Gradually test recovery with half-open state
+
+### Graceful Degradation
+- Provide fallback behavior when dependencies fail
+- Return cached data if real-time data unavailable
+- Disable non-critical features gracefully
+- Show informative messages: "Real-time updates temporarily unavailable"
+
+---
+
+## 📈 Observability and Monitoring
+
+### Structured Logging
+- **Use JSON-formatted logs** in production with standard fields:
+  ```json
+  {
+    "timestamp": "2025-11-30T12:00:00Z",
+    "level": "INFO",
+    "correlationId": "req-abc123",
+    "userId": "user-456",
+    "service": "api-server",
+    "message": "User created successfully",
+    "duration_ms": 234,
+    "metadata": { "email": "user@example.com" }
+  }
+  ```
+- **Include correlation ID** in ALL log entries for request tracing
+  - Generate UUID at request entry point
+  - Pass through all service calls
+  - Return in response headers: `X-Correlation-ID`
+
+### Log Levels
+Use log levels appropriately:
+- **DEBUG**: Development-only, verbose details, NEVER in production
+- **INFO**: Business events (user created, order placed, payment processed)
+- **WARN**: Recoverable errors (retry succeeded, fallback used, deprecated API called)
+- **ERROR**: Failures requiring investigation (DB connection failed, external API error, unhandled exception)
+- **FATAL**: System-wide failures (out of memory, unable to start)
+
+### What to Log vs. NEVER Log
+**DO log:**
+- User IDs (not usernames or emails in logs)
+- Request IDs and correlation IDs
+- Operation outcomes (success/failure)
+- Performance metrics (latency, duration)
+- Business events (order placed, payment completed)
+- Error messages and stack traces (server-side only)
+
+**NEVER log:**
+- Passwords (plaintext or hashed)
+- API keys, auth tokens, session IDs
+- PII (SSN, credit card numbers, addresses)
+- Full request/response bodies (may contain secrets)
+- Database connection strings with credentials
+
+### Metrics Instrumentation
+- **Instrument critical operations**:
+  - API response times (per endpoint)
+  - Database query duration
+  - External API call latency
+  - Queue depth and processing time
+  - Error rates by type
+
+- **Use appropriate metric types**:
+  - **Counters**: Total requests, errors, events (always increasing)
+  - **Gauges**: Active connections, queue depth, memory usage (can go up/down)
+  - **Histograms**: Request latency percentiles (p50, p95, p99), payload sizes
+
+- **Tag metrics** for filtering:
+  - Environment (dev, staging, prod)
+  - Service name
+  - Endpoint/route
+  - HTTP status code
+  - Error type
+
+### Health Checks
+- **Implement `/health/live`**: Liveness check - is process running?
+  ```javascript
+  app.get('/health/live', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
+  ```
+- **Implement `/health/ready`**: Readiness check - can serve traffic?
+  ```javascript
+  app.get('/health/ready', async (req, res) => {
+    const dbConnected = await checkDatabase();
+    const cacheConnected = await checkRedis();
+
+    if (dbConnected && cacheConnected) {
+      res.status(200).json({ status: 'ready' });
+    } else {
+      res.status(503).json({ status: 'not ready' });
+    }
+  });
+  ```
+- Health checks should complete in <100ms
+- Return 200 if healthy, 503 if not ready
+
+### Distributed Tracing
+- Use OpenTelemetry or similar for distributed tracing
+- Trace spans across service boundaries
+- Include trace IDs in logs for correlation
+- Measure end-to-end request latency
+
+### Alerting and SLOs
+- **Define SLOs**: e.g., 99.9% of requests complete in <500ms
+- **Alert on thresholds**:
+  - Error rate >1% sustained for 5 minutes
+  - Response time p95 >1 second
+  - Availability <99.9% over 1 hour
+- **Include context in alerts**: Correlation ID, affected endpoint, recent deployments
+- Alert on business metrics: Failed payments, signup failures
+
+---
+
+## ✅ Testing Standards
+
+### Test Coverage Strategy
+- **Aim for meaningful coverage**, not just high percentage
+- **Prioritize testing**:
+  1. Critical paths (authentication, payments, data persistence)
+  2. Edge cases (boundary values, null handling, empty inputs)
+  3. Error conditions (network failures, invalid inputs, timeouts)
+  4. Security-sensitive code (input validation, authorization)
+- Don't test framework code or trivial getters/setters
+
+### Test Types
+- **Unit tests**: Test individual functions/methods in isolation
+  - Mock external dependencies (DB, APIs, file system)
+  - Fast (<1ms per test), deterministic
+  - Naming: `test_function_condition_expectedResult`
+
+- **Integration tests**: Test multiple components together
+  - Test database queries, API integrations
+  - Use test database, not production
+  - Slower but closer to reality
+
+- **End-to-end tests**: Test full user flows
+  - Critical user journeys only (signup, checkout, etc.)
+  - Run in CI before deployment
+  - Use realistic test data
+
+### Test Quality
+- **Tests must be isolated**: No shared state between tests
+- **Tests must be repeatable**: Same result every run
+- **Tests must be fast**: Entire suite <5 minutes ideal
+- **Use descriptive test names**: What is being tested and expected outcome
+  ```python
+  # Good
+  def test_create_user_with_invalid_email_returns_400():
+      pass
+
+  # Bad
+  def test_user():
+      pass
+  ```
+
+### Test Data Management
+- Use fixtures/factories for test data
+- Reset database state between tests
+- Don't use production data in tests
+- Anonymize data if using production copy
+
+### Mocking and Stubbing
+- Mock external dependencies: HTTP calls, email sending, payment gateways
+- Don't mock what you don't own (database, framework internals)
+- Verify mocks are called with expected arguments
+- Use test doubles: mocks, stubs, fakes, spies appropriately
+
+---
+
+## ⚡ Performance and Scalability
+
+### Database Optimization
+- **Use indexes** on frequently queried columns (WHERE, JOIN, ORDER BY)
+- **Avoid N+1 queries**: Use eager loading or joins
+  ```python
+  # Good (eager loading)
+  users = User.query.options(joinedload(User.orders)).all()
+
+  # Bad (N+1 query)
+  users = User.query.all()
+  for user in users:
+      orders = user.orders  # Triggers separate query per user
+  ```
+- **Use pagination** for large result sets (limit to 100 items per page)
+- **Cache frequently accessed data**: User profiles, config settings
+- **Use connection pooling**: Reuse DB connections
+- **Monitor slow queries**: Log queries >100ms
+
+### Caching Strategies
+- **Cache at multiple levels**:
+  - Application cache: Redis, Memcached
+  - HTTP cache: CDN, browser cache
+  - Database cache: Query result cache
+- **Set appropriate TTLs**:
+  - Static content: 1 year
+  - User-specific data: 5-15 minutes
+  - Real-time data: No cache or very short TTL
+- **Cache invalidation**: Update or purge cache when data changes
+- **Use cache-aside pattern**: Check cache first, then database
+
+### Async and Concurrency
+- **Use async for I/O-bound operations**: DB queries, API calls, file I/O
+- **Avoid blocking the event loop**: Don't use synchronous I/O in async code
+- **Use task queues** for long-running jobs: Celery, Bull, RabbitMQ
+- **Implement concurrency limits**: Max concurrent requests, connection pools
+
+### Resource Management
+- **Implement graceful shutdown**:
+  - Stop accepting new requests
+  - Drain existing connections (timeout: 30s)
+  - Close database connections
+  - Flush logs and metrics
+- **Set resource limits**:
+  - Max memory per process
+  - Max file descriptors
+  - Max concurrent connections
+  - Request timeout limits
+
+### Performance Monitoring
+- Monitor key metrics:
+  - Response time percentiles (p50, p95, p99)
+  - Throughput (requests per second)
+  - Error rate
+  - CPU and memory usage
+- Set performance budgets: API responses <500ms p95
+- Profile slow endpoints and optimize
+
+---
+
+## 🚀 Infrastructure and Deployment
+
+### Configuration Management
+- **Follow 12-factor app principles**:
+  - Store config in environment variables
+  - Strict separation of config from code
+  - One codebase, multiple deploys
+- **Configuration hierarchy**:
+  1. Default values (in code)
+  2. Environment-specific config files
+  3. Environment variables (highest precedence)
+- **Validate configuration** at startup, fail fast if invalid
+- **Use secrets management**: AWS Secrets Manager, HashiCorp Vault
+
+### Containerization (Docker)
+- **Use multi-stage builds** to minimize image size
+  ```dockerfile
+  # Build stage
+  FROM node:18 AS builder
+  WORKDIR /app
+  COPY package*.json ./
+  RUN npm ci --only=production
+
+  # Production stage
+  FROM node:18-slim
+  COPY --from=builder /app/node_modules ./node_modules
+  COPY . .
+  CMD ["node", "server.js"]
+  ```
+- **Use specific base image versions**: `node:18.19.0`, not `node:latest`
+- **Run as non-root user** in container
+- **Use .dockerignore** to exclude unnecessary files
+- **Scan images for vulnerabilities**: Docker Scout, Trivy
+
+### Environment Separation
+- **Maintain separate environments**: dev, staging, production
+- **Never use production data in dev/staging**
+- **Use feature flags** for gradual rollouts
+- **Test in staging** before production deployment
+
+### Deployment Strategies
+- **Blue-green deployment**: Two identical environments, switch traffic
+- **Canary deployment**: Gradual rollout to subset of users (10% → 50% → 100%)
+- **Rolling deployment**: Update instances incrementally
+- **Rollback plan**: Keep previous version deployable, automate rollback
+
+### Monitoring and Observability
+- Implement distributed tracing (OpenTelemetry)
+- Centralized logging (ELK stack, CloudWatch Logs)
+- Metrics collection (Prometheus, CloudWatch Metrics)
+- Alerting (PagerDuty, OpsGenie)
+
+---
+
+## 📝 Git and Code Review Practices
+
+### Commit Messages
+- **Use conventional commit format**:
+  ```
+  type(scope): Brief description
+
+  Detailed explanation of what changed and why.
+
+  Fixes #123
+  ```
+- **Types**: feat, fix, docs, style, refactor, test, chore
+- **Keep commits atomic**: One logical change per commit
+- **First line**: <50 chars, imperative mood ("Add feature" not "Added feature")
+
+### Branch Naming
+- **Use descriptive names**: `feature/user-authentication`, `fix/payment-bug`
+- **Prefixes**: feature/, fix/, hotfix/, refactor/, docs/
+- **Keep branches short-lived**: Merge within 2-3 days
+
+### Pull Request Guidelines
+- **Keep PRs small**: <400 lines of changes ideal
+- **Self-review checklist**:
+  - [ ] Tests added/updated
+  - [ ] Documentation updated
+  - [ ] No debug code (console.log, debugger)
+  - [ ] No commented-out code
+  - [ ] Security considerations addressed
+- **Require at least one approval** before merge
+- **Address all review comments** or provide rationale
+- **Link PRs to issues**: "Closes #123"
+
+### Code Review Focus
+- **Correctness**: Does the code do what it's supposed to?
+- **Security**: Are there vulnerabilities or security risks?
+- **Performance**: Are there obvious performance issues?
+- **Maintainability**: Is the code clear and well-structured?
+- **Tests**: Are edge cases covered?
+- **Documentation**: Is complex logic explained?
+
+### Before Merging
+- **All CI checks pass**: Tests, linting, security scans
+- **No merge conflicts**
+- **Branch is up to date** with main
+- **Deployment plan considered**: Can this be rolled back?
+
+---
+
+## 📖 Documentation Standards
+
+### Code Comments
+- **Write self-documenting code** that minimizes need for comments
+- **Comment WHY, not WHAT**: Explain reasoning, not mechanics
+  ```python
+  # Good - explains why
+  # Use exponential backoff to avoid overwhelming the API during outages
+  time.sleep(2 ** retry_count)
+
+  # Bad - explains what (obvious from code)
+  # Sleep for 2 to the power of retry_count
+  time.sleep(2 ** retry_count)
+  ```
+- **Document complex algorithms**: Link to resources, explain approach
+- **Update comments** when code changes (or delete outdated comments)
+
+### API Documentation
+- **Document all public APIs** with JSDoc/docstrings
+  ```typescript
+  /**
+   * Retrieves a user by ID.
+   *
+   * @param userId - The unique identifier for the user
+   * @returns Promise resolving to User object
+   * @throws {NotFoundError} If user does not exist
+   * @throws {DatabaseError} If database query fails
+   *
+   * @example
+   * const user = await getUser("user-123");
+   */
+  async function getUser(userId: string): Promise<User> {
+    // ...
+  }
+  ```
+- **Include examples** of usage
+- **Document error conditions**: What exceptions can be thrown?
+- **Keep docs in sync** with code changes
+
+### README Documentation
+- **Include in README**:
+  - Project description and purpose
+  - Prerequisites and dependencies
+  - Installation instructions
+  - Configuration guide
+  - Usage examples
+  - API documentation link
+  - Contributing guidelines
+  - License
+- **Update README** when adding features or changing setup
+
+### Architecture Documentation
+- **Document key architectural decisions**: ADRs (Architecture Decision Records)
+- **Maintain architecture diagrams**: System context, component diagrams
+- **Document data models**: Entity-relationship diagrams
+- **Keep docs up to date**: Review quarterly
+
+---
+
+## 🚫 Explicit Prohibitions - NEVER Do These
+
+### Code Execution (CRITICAL)
+- ❌ **NEVER use `eval()`, `exec()`, or `Function()` constructor** with user input
+- ❌ **NEVER execute system commands** with unsanitized user input (shell injection risk)
+  ```python
+  # NEVER DO THIS
+  os.system(f"convert {user_filename} output.pdf")  # Shell injection!
+
+  # Use subprocess with list instead
+  subprocess.run(["convert", user_filename, "output.pdf"], check=True)
+  ```
+
+### Data Handling (CRITICAL)
+- ❌ **NEVER log sensitive data**: passwords, tokens, SSNs, credit cards, API keys
+- ❌ **NEVER store passwords in plaintext** or reversible encryption
+- ❌ **NEVER trust client-side validation alone** - always validate server-side
+- ❌ **NEVER use `SELECT *` in production queries** (specify columns)
+- ❌ **NEVER expose internal IDs** (database auto-increment IDs) - use UUIDs for public APIs
+
+### Cryptography (CRITICAL)
+- ❌ **NEVER use MD5, SHA1, or DES** (deprecated, cryptographically broken)
+- ❌ **NEVER use ECB encryption mode** (lacks semantic security)
+- ❌ **NEVER implement custom crypto** - use vetted libraries (NaCl, libsodium)
+- ❌ **NEVER use weak random**: `Math.random()`, `random.random()` for security
+
+### Error Handling (HIGH)
+- ❌ **NEVER expose stack traces** or internal errors to end users
+- ❌ **NEVER use empty catch blocks** - at minimum, log the error
+  ```javascript
+  // NEVER DO THIS
+  try {
+    riskyOperation();
+  } catch (e) {} // Silent failure!
+  ```
+- ❌ **NEVER ignore promise rejections** - use `.catch()` or try/catch with await
+
+### Configuration (HIGH)
+- ❌ **NEVER commit secrets** to version control, even in comments
+- ❌ **NEVER use default credentials** (admin/admin, root/password)
+- ❌ **NEVER hardcode** API URLs, ports, or environment-specific values
+- ❌ **NEVER store API keys in frontend code** (visible to users)
+
+### Dependencies (MEDIUM)
+- ❌ **NEVER install packages with `--force`** without understanding why
+- ❌ **NEVER use packages from untrusted sources** (verify npm/PyPI official packages)
+- ❌ **NEVER ignore security audit warnings** without documented risk acceptance
+
+### Performance (MEDIUM)
+- ❌ **NEVER block the event loop** in Node.js (use async for I/O operations)
+- ❌ **NEVER load entire large files into memory** (use streams)
+- ❌ **NEVER create database connections per request** (use connection pooling)
+
+### Git Practices (LOW)
+- ❌ **NEVER commit directly to main/master** without review
+- ❌ **NEVER commit commented-out code** - delete it (Git history preserves it)
+- ❌ **NEVER commit debug logs** (`console.log`, `print()` statements)
+- ❌ **NEVER force push to shared branches** without team coordination
+
+---
+
+## 🎨 Project-Specific Overrides
+
+<!-- Add your project-specific rules here. These take precedence over general rules above. -->
+
+### Example Project Rules (Customize for your project):
+
+```
+# Project: E-commerce Platform
+# Tech Stack: Node.js, TypeScript, PostgreSQL, Redis
+
+## Custom Rules
+- Use Prisma ORM for all database access
+- Follow Domain-Driven Design patterns (entities, repositories, services)
+- All currency values use Decimal type, NEVER floating point
+- Implement idempotency keys for all payment operations
+- Cache product catalog in Redis with 10-minute TTL
+- Use event sourcing for order status changes
+
+## Specific Prohibitions
+- NEVER process payments without idempotency check
+- NEVER store credit card numbers (use payment gateway tokens)
+- NEVER allow negative inventory quantities
+
+## Team Conventions
+- Use Jira ticket IDs in branch names: feature/PROJ-123-user-auth
+- Require 2 approvals for payment-related code
+- Run full test suite on payment changes before PR
+```
+
+---
+
+## 📌 How to Use These Rules
+
+1. **Read the Quick Reference** for the top 10 most critical rules
+2. **Review language-specific sections** for your tech stack
+3. **Bookmark sections** you reference frequently
+4. **Update Project-Specific Overrides** with team conventions
+5. **Review quarterly** and update as best practices evolve
+6. **Onboard new developers** with this file
+
+---
+
+## 🔄 Maintenance
+
+- **Last Updated**: 2025-11-30
+- **Review Schedule**: Quarterly
+- **Owner**: [Your Team/Name]
+- **Feedback**: [Link to feedback form or Slack channel]
+
+---
+
+**Remember**: These rules guide AI-assisted development. They complement (not replace) automated tooling like linters, security scanners, and CI/CD checks. Use your judgment - rules are guidelines, not absolute laws. Document exceptions with clear rationale.
