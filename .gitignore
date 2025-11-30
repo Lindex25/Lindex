@@ -1,70 +1,43 @@
-# Environment variables and secrets
-.env
-.env.local
-.env.*.local
-*.key
-*.pem
-secrets/
-.secrets
-
 # Dependencies
 node_modules/
-__pycache__/
-*.pyc
-*.pyo
-venv/
-env/
-.venv/
-pip-log.txt
-package-lock.json  # Remove this line if you want to commit lock files
-
-# Build outputs
-dist/
-build/
-*.egg-info/
-.next/
-out/
-
-# IDE and editor files
-.vscode/settings.json  # Remove if you want to share IDE settings
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Testing
-coverage/
-.coverage
-.pytest_cache/
-.nyc_output/
-*.test.js
-
-# Logs
-logs/
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Operating System
+# Python virtual environment (not used in this Node.js project)
+.venv/
+venv/
+env/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
 
 # Temporary files
 tmp/
 temp/
-*.tmp
-
-# Database
-*.sqlite
-*.sqlite3
-*.db
-
-# WSL-specific
-.backup.log
-*.tmp
-
-# Windows
-Thumbs.db
-desktop.ini
