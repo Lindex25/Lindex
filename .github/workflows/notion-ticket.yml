@@ -104,7 +104,7 @@ jobs:
                 "url": "$COMMIT_URL"
               },
               "Status": {
-                "select": {
+                "status": {
                   "name": "Committed"
                 }
               }
