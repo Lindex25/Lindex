@@ -169,6 +169,56 @@ CREATE INDEX idx_ai_queries_case_id ON ai_queries(case_id);
 CREATE INDEX idx_ai_queries_created_at ON ai_queries(created_at);
 
 -- ============================================================================
+-- FUNCTION: search_case_evidence_embeddings
+-- ============================================================================
+-- Performs vector similarity search over a user's case evidence
+-- Used by the RAG query engine to find relevant evidence snippets
+--
+-- Security: Enforces user_id and case_id ownership
+-- Performance: Uses pgvector's <-> operator for cosine similarity
+--
+-- Parameters:
+--   p_user_id: User UUID (ownership check)
+--   p_case_id: Case UUID (scope limit)
+--   p_query_embedding: Query vector as string '[0.1, 0.2, ...]'
+--   p_limit: Maximum number of results to return
+--
+-- Returns: Table with evidence_id, chunk_content, distance
+-- ============================================================================
+CREATE OR REPLACE FUNCTION search_case_evidence_embeddings(
+    p_user_id uuid,
+    p_case_id uuid,
+    p_query_embedding text,
+    p_limit int DEFAULT 5
+)
+RETURNS TABLE (
+    evidence_id uuid,
+    chunk_content text,
+    distance float
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        e.id AS evidence_id,
+        etc.content AS chunk_content,
+        (ee.embedding <-> p_query_embedding::vector) AS distance
+    FROM evidence_embeddings ee
+    INNER JOIN evidence_text_chunks etc ON ee.chunk_id = etc.id
+    INNER JOIN evidence e ON etc.evidence_id = e.id
+    INNER JOIN cases c ON e.case_id = c.id
+    WHERE
+        c.user_id = p_user_id
+        AND c.id = p_case_id
+        AND e.processing_status = 'READY'
+    ORDER BY distance ASC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Grant execute permission to authenticated users (adjust based on your RLS setup)
+-- GRANT EXECUTE ON FUNCTION search_case_evidence_embeddings(uuid, uuid, text, int) TO authenticated;
+
+-- ============================================================================
 -- COMPLETED: Initial LINDEX Schema
 -- ============================================================================
 -- Next steps:
