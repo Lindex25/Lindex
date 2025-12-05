@@ -1,86 +1,116 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
+/**
+ * GET /api/protected
+ *
+ * Protected endpoint demonstrating authentication with Clerk + Supabase integration.
+ * This endpoint verifies the user's Clerk session and ensures they exist in the
+ * Supabase users table (auto-creating on first access).
+ */
 export async function GET() {
-  const { userId } = await auth();
+  try {
+    // Authenticate user via Clerk and get/create Supabase user record
+    const user = await getAuthenticatedUser();
 
-  if (!userId) {
+    return NextResponse.json({
+      ok: true,
+      message: 'You are authenticated',
+      userId: user.userId,           // Supabase UUID
+      clerkUserId: user.clerkUserId, // Clerk user ID
+      email: user.email,             // User's email
+      timestamp: new Date().toISOString(),
+    });
+
+  } catch (error) {
+    // Handle authentication errors
+    if (error instanceof Error && error.message.includes('Unauthenticated')) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Unauthorized',
+          message: 'You must be signed in to access this resource'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Handle unexpected errors
+    console.error('Error in GET /api/protected:', error);
     return NextResponse.json(
-      { error: 'Unauthorized', message: 'You must be signed in to access this resource' },
-      { status: 401 }
+      {
+        ok: false,
+        error: 'Internal server error'
+      },
+      { status: 500 }
     );
   }
-
-  // Get full user details from Clerk
-  const user = await currentUser();
-
-  // Example: Use Supabase with the authenticated user context
-  // This demonstrates that Clerk auth works with Supabase operations
-  // You can use supabaseAdmin for operations that need service role access
-
-  // Example query (will work once you have tables set up)
-  // const { data, error } = await supabaseAdmin
-  //   .from('profiles')
-  //   .select('*')
-  //   .eq('clerk_user_id', userId)
-  //   .single();
-
-  return NextResponse.json({
-    ok: true,
-    message: 'You are authenticated via Clerk',
-    user: {
-      id: userId,
-      email: user?.emailAddresses[0]?.emailAddress ?? null,
-      firstName: user?.firstName ?? null,
-      lastName: user?.lastName ?? null,
-    },
-    supabaseConnected: true,
-    timestamp: new Date().toISOString(),
-  });
 }
 
 /**
- * Example POST endpoint showing how to save data to Supabase
- * with Clerk authentication
+ * POST /api/protected
+ *
+ * Example POST endpoint demonstrating how to handle authenticated requests
+ * with the getAuthenticatedUser() helper.
  */
 export async function POST(request: Request) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'Unauthorized', message: 'You must be signed in to access this resource' },
-      { status: 401 }
-    );
-  }
-
   try {
+    // Authenticate user
+    const user = await getAuthenticatedUser();
+
+    // Parse request body
     const body = await request.json();
 
-    // Example: Insert data into Supabase with the user's ID
-    // Uncomment and modify once you have your tables set up:
-    // const { data, error } = await supabaseAdmin
+    // Example: You can now use user.userId for database operations
+    // const { data, error } = await supabaseServer
     //   .from('your_table')
     //   .insert({
-    //     clerk_user_id: userId,
+    //     user_id: user.userId,  // Use Supabase UUID
     //     ...body,
     //   })
     //   .select()
     //   .single();
-    //
-    // if (error) {
-    //   return NextResponse.json({ error: error.message }, { status: 500 });
-    // }
 
     return NextResponse.json({
       ok: true,
       message: 'Data received successfully',
-      userId,
+      userId: user.userId,
+      clerkUserId: user.clerkUserId,
       receivedData: body,
     });
+
   } catch (error) {
+    // Handle authentication errors
+    if (error instanceof Error && error.message.includes('Unauthenticated')) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Unauthorized',
+          message: 'You must be signed in to access this resource'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Handle JSON parsing errors
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Invalid JSON body'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Handle unexpected errors
+    console.error('Error in POST /api/protected:', error);
     return NextResponse.json(
-      { error: 'Invalid JSON body' },
-      { status: 400 }
+      {
+        ok: false,
+        error: 'Internal server error'
+      },
+      { status: 500 }
     );
   }
 }
