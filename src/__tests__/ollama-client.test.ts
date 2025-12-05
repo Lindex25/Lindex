@@ -1,6 +1,6 @@
 /**
  * Ollama Client Tests
- * 
+ *
  * Tests for the Ollama API client including
  * connection handling, request formatting, and response parsing.
  */
@@ -166,4 +166,5 @@ describe('Ollama Client', () => {
     });
   });
 });
+
 
