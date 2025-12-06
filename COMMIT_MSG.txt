@@ -1,0 +1,178 @@
+feat(ingestion): Implement local text extraction and embeddings pipeline
+
+Add compliance-focused ingestion pipeline with 2-step processing:
+
+Core Features:
+- Local-only PDF and image text extraction (100% on-premise)
+- Two-step job processing: TEXT_EXTRACTION → EMBEDDINGS
+- Background worker polls processing_jobs table
+- Vector embeddings stored in PostgreSQL (pgvector)
+
+New Files:
+- lib/text-extraction.ts: Local PDF/OCR extraction helper
+  • Uses pdf-parse for PDF text extraction (local)
+  • Uses tesseract.js for image OCR (WASM-based, local)
+  • Singleton worker pattern for efficiency
+  • Automatic file type detection from MIME/filename
+  • Whitespace normalization and validation
+
+- lib/embeddings.ts: OpenAI embeddings generation
+  • embedTextChunk() for single chunk embedding
+  • embedManyChunks() for batch processing (more efficient)
+  • Automatic batching with rate limit handling
+  • Token estimation and limit validation
+  • Only sends pre-chunked text segments (500-1500 chars)
+
+- scripts/ingestion-worker.ts: Background processing worker
+  • Polls processing_jobs table every 3 seconds
+  • TEXT_EXTRACTION: Download → Extract → Chunk → Store
+  • EMBEDDINGS: Generate vectors → Store in pgvector
+  • Robust error handling with status tracking
+  • Graceful shutdown support (SIGINT/SIGTERM)
+  • Comprehensive logging with emojis for clarity
+
+- docs/INGESTION.md: Comprehensive ingestion documentation
+  • Architecture and privacy-first design explanation
+  • Local vs. external processing breakdown table
+  • OpenAI account configuration requirements
+  • Compliance verification checklist
+  • Security measures and audit trail requirements
+
+- docs/INGESTION_WORKER.md: Worker-specific documentation
+  • Detailed job processing flow with diagrams
+  • Database schema documentation
+  • Running instructions (dev and production)
+  • Troubleshooting guide with common issues
+  • Performance tuning and scaling options
+  • FAQ and development tips
+
+- lib/__examples__/text-extraction-example.ts: Usage examples
+  • PDF extraction example
+  • Image OCR example
+  • Automatic type detection example
+  • API route integration example
+  • Error handling demonstration
+
+- env.template: Environment variables documentation
+  • All required and optional configuration
+  • OpenAI embeddings settings
+  • Ingestion pipeline configuration
+  • Security and logging settings
+
+Dependencies Added:
+- pdf-parse: ^1.1.1 (local PDF text extraction)
+- tesseract.js: ^5.1.1 (local OCR processing)
+- openai: ^4.73.0 (embeddings API client)
+- tsx: ^4.21.0 (TypeScript executor for dev)
+- dotenv: ^17.2.3 (environment variable loading)
+- @types/pdf-parse: ^1.1.5 (TypeScript types)
+
+Package.json Updates:
+- Added 'ingest:dev' script: tsx scripts/ingestion-worker.ts
+- Configured for running TypeScript worker directly in development
+
+═══════════════════════════════════════════════════════════════════════════
+COMPLIANCE & PRIVACY FEATURES
+═══════════════════════════════════════════════════════════════════════════
+
+LOCAL-ONLY EXTRACTION:
+• All OCR and PDF parsing is performed locally in the LINDEX backend
+• No raw document bytes are sent to any LLM or AI provider during ingestion
+• 100% local processing using pdf-parse and tesseract.js
+• All file I/O and processing happens within our Supabase infrastructure
+
+EMBEDDINGS-ONLY EXTERNAL CALLS:
+• Only short, pre-chunked text segments are sent to OpenAI
+• Typical chunk size: 500-1500 characters
+• Never sends full documents or raw file bytes
+• Never uses chat/completion endpoints during ingestion
+• Pre-chunked locally BEFORE any external API calls
+
+NO LEGAL RESEARCH OR ADVICE:
+• Ingestion worker is data preparation only
+• Does not interpret, analyze, or generate legal advice
+• Legal analysis happens separately in user-facing RAG APIs
+• This is a technical pipeline, not a legal reasoning system
+
+PROVIDER DATA-USAGE CONSTRAINTS:
+• OpenAI account MUST have 'Data usage for training' OFF
+• Configuration enforced in provider dashboard (not in code)
+• 30-day retention maximum (abuse monitoring only)
+• Verification required before production deployment
+• Must be documented in compliance audit logs
+• Verify at: https://platform.openai.com/account/data-usage
+
+═══════════════════════════════════════════════════════════════════════════
+
+Technical Architecture:
+- Two-step processing pipeline:
+  1. TEXT_EXTRACTION job: Extract → Chunk → Create EMBEDDINGS job
+  2. EMBEDDINGS job: Generate vectors → Store → Mark as READY
+
+- Database tables used:
+  • processing_jobs: Job queue with status tracking
+  • evidence: File metadata and processing status
+  • evidence_text_chunks: Extracted text segments
+  • evidence_embeddings: Vector embeddings (pgvector)
+
+- Worker behavior:
+  • Polls every 3 seconds for pending jobs
+  • Processes up to 5 jobs per batch
+  • Sequential processing (reliable, simple)
+  • Updates status: PENDING → PROCESSING → COMPLETED/FAILED
+  • Stores error messages on failure
+
+Configuration:
+- Environment variables added to .env.local:
+  • OPENAI_API_KEY (embeddings generation)
+  • OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+  • OPENAI_EMBEDDING_DIMENSIONS=1536
+  • INGESTION_CHUNK_SIZE=1000
+  • INGESTION_CHUNK_OVERLAP=200
+  • INGESTION_MAX_FILE_SIZE=52428800 (50MB)
+
+Security Enhancements:
+- File type validation (MIME type + extension)
+- Buffer size limits and validation
+- Error message truncation (max 500 chars in DB)
+- Graceful shutdown handlers
+- Singleton Tesseract worker (efficient resource usage)
+- Rate limit handling with delays between batches
+
+Documentation Quality:
+- Comprehensive compliance comments in all code files
+- Clear separation of local vs. external processing
+- Verification checklists for production deployment
+- Troubleshooting guides with common issues
+- Architecture diagrams in ASCII format
+- FAQ section for developers
+
+Testing & Development:
+- Run worker: npm run ingest:dev
+- Uses tsx for direct TypeScript execution
+- Comprehensive logging for debugging
+- Example usage files for testing
+
+Future Enhancements (documented):
+- Structured logging (Winston, Pino)
+- Error monitoring (Sentry)
+- Metrics collection (Prometheus)
+- Job retry with exponential backoff
+- Concurrent processing with worker pools
+- Self-hosted embeddings option
+
+Breaking Changes: None
+
+═══════════════════════════════════════════════════════════════════════════
+COMPLIANCE CHECKLIST (Required before production)
+═══════════════════════════════════════════════════════════════════════════
+[ ] Verify OpenAI 'Data usage for training' is OFF
+[ ] Document verification in compliance audit logs
+[ ] Review OpenAI data usage policies
+[ ] Update Terms of Service to inform users
+[ ] Implement PII monitoring (optional but recommended)
+[ ] Train support staff on compliance architecture
+
+Related: Implements evidence ingestion and embeddings pipeline for LINDEX
+
+

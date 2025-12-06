@@ -40,3 +40,4 @@ npx supabase db execute -f infra/sql/001_init_lindex_schema.sql --db-url "your-d
 
 Get your database URL from: Supabase Dashboard → Settings → Database → Connection String (URI)
 
+

@@ -94,3 +94,4 @@ export const supabaseServer = createClient(supabaseUrl, supabaseServiceRoleKey, 
  * export const supabaseServer = createClient<Database>(...);
  */
 
+
