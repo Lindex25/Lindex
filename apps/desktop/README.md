@@ -85,3 +85,4 @@ This is the **MVP shell**. Future native integrations planned for the desktop ap
 - `apps/mobile` - React Native mobile app
 - `apps/desktop` - Electron desktop app (this project)
 
+

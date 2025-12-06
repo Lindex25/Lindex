@@ -372,3 +372,4 @@ CREATE POLICY "Users can delete their own AI queries"
 -- ORDER BY tablename, policyname;
 -- ============================================================================
 
+

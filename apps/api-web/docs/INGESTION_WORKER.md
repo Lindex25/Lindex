@@ -506,3 +506,4 @@ A: Yes! Update `lib/embeddings.ts` to call a different API or use local models (
 **Version:** 1.0
 **Maintained By:** LINDEX Development Team
 
+

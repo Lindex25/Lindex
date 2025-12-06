@@ -118,3 +118,4 @@ export interface LindexApiError {
   details?: Record<string, any>;
 }
 
+

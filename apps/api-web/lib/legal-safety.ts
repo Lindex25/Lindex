@@ -304,3 +304,4 @@ export function getPatternCount(): number {
   return LEGAL_ADVICE_PATTERNS.length;
 }
 
+
